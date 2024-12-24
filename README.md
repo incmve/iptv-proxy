@@ -7,7 +7,7 @@ NOTE: This fork of the [original project](https://github.com/pierre-emmanuelJ/ip
 - Corrected issue with Xtream Codes EPG not loading
 - Fixed issue with Xtream Codes VOD (Shows & Movies) as the IPTV provider returned data seems to be partially complete, or missing pieces that this proxy is expecting
 - Continue on error EXTINF
-
+- Added Gluetun for VPN
 
 ## Description
 
@@ -135,31 +135,19 @@ New xtream credentials
 
 
 ## Installation
-
-Download lasted [release](https://github.com/pierre-emmanuelJ/iptv-proxy/releases)
-
-Or
-
-`% go install` in root repository
-
 ## With Docker
 
 ### Prerequisite
 
  - Add an m3u URL in `docker-compose.yml` or add local file in `iptv` folder
  - `HOSTNAME` and `PORT` to expose
- - Expose same container port as the `PORT` ENV variable 
+ - CHange VPN credentials and provider
 
 ```Yaml
- ports:
-       # have to be the same as ENV variable PORT
-      - 8080:8080
  environment:
       # if you are using m3u remote file
       # M3U_URL: http://example.com:1234/get.php?username=user&password=pass&type=m3u_plus&output=m3u8
       M3U_URL: /root/iptv/iptv.m3u
-      # Port to expose the IPTVs endpoints
-      PORT: 8080
       # Hostname or IP to expose the IPTVs endpoints (for machine not for docker)
       HOSTNAME: localhost
       GIN_MODE: release
@@ -176,81 +164,6 @@ Or
 
 ```
 % docker-compose up -d
-```
-
-## TLS - https with traefik
-
-Put files and folders of `./traekik` folder in root repo:
-```Shell
-$ cp -r ./traekik/* .
-```
-
-```Shell
-$ mkdir config \
-        && mkdir -p Traefik/etc/traefik \
-        && mkdir -p Traefik/log
-```
-
-
-`docker-compose` sample with traefik:
-```Yaml
-version: "3"
-services:
-  iptv-proxy:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    volumes:
-      # If your are using local m3u file instead of m3u remote file
-      # put your m3u file in this folder
-      - ./iptv:/root/iptv
-    container_name: "iptv-proxy"
-    restart: on-failure
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.iptv-proxy.rule=Host(`iptv.proxyexample.xyz`)"
-      - "traefik.http.routers.iptv-proxy.entrypoints=websecure"
-      - "traefik.http.routers.iptv-proxy.tls.certresolver=mydnschallenge"
-      - "traefik.http.services.iptv-proxy.loadbalancer.server.port=8080"
-    environment:
-      # if you are using m3u remote file
-      # M3U_URL: https://example.com/iptvfile.m3u
-      M3U_URL: /root/iptv/iptv.m3u
-      # Iptv-Proxy listening port
-      PORT: 8080
-      # Port to expose for Xtream or m3u file tracks endpoint
-      ADVERTISED_PORT: 443
-      # Hostname or IP to expose the IPTVs endpoints (for machine not for docker)
-      HOSTNAME: iptv.proxyexample.xyz
-      GIN_MODE: release
-      # Inportant to activate https protocol on proxy links
-      HTTPS: 1
-      ## Xtream-code proxy configuration
-      XTREAM_USER: xtream_user
-      XTREAM_PASSWORD: xtream_password
-      XTREAM_BASE_URL: "http://example.tv:1234"
-      #will be used for m3u and xtream auth proxy
-      USER: test
-      PASSWORD: testpassword
-
-  traefik:
-    restart: always
-    image: traefik:v2.4
-    read_only: true
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./Traefik/traefik.yaml:/traefik.yaml:ro
-      - ./Traefik/etc/traefik:/etc/traefik/
-      - ./Traefik/log:/var/log/traefik/
-```
-
-Replace `iptv.proxyexample.xyz` in `docker-compose.yml` with your desired domain.
-
-```Shell
-$ docker-compose up -d
 ```
 
 ## TODO
