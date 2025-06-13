@@ -40,15 +40,24 @@ services:
     restart: always
     environment:
       # if you are using m3u remote file
-      # M3U_URL: https://example.com/iptvfile.m3u
-      M3U_URL: http://XXXXXXXXXX:8000/get.php?username=XXXXXXXXXX&password=XXXXXXXXXX&type=m3u_plus&output=mpegts
+      # Choose M3U url or Xtream codes
+      # M3U_URL: http://XXXXXXXXXX:8000/get.php?username=XXXXXXXXXX&password=XXXXXXXXXX&type=m3u_plus&output=mpegts
+      XTREAM_USER: "your_xtream_username"
+      XTREAM_PASSWORD: "your_xtream_password"
+      XTREAM_BASE_URL: "http://your-provider.com:8000"
+      XTREAM_API_GET: true
       # Port to expose the IPTVs endpoints
       PORT: 8080
       # Hostname or IP to expose the IPTVs endpoints (for machine not for docker)
       HOSTNAME: iptvproxy
       GIN_MODE: release
-      ## Xtream-code proxy configuration
-
+      # Buffer configuration
+      BUFFER_ENABLED: true
+      BUFFER_DURATION: 5
+      BUFFER_MAX_MEMORY: 10
+      # Additional settings
+      M3U_CACHE_EXPIRATION: 1
+      M3U_FILE_NAME: "iptv.m3u"
       ##### UNSAFE AUTH TODO ADD REAL AUTH
       #will be used for m3u and xtream auth poxy
       USER: test
