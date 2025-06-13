@@ -89,6 +89,10 @@ var rootCmd = &cobra.Command{
 			CustomEndpoint:       viper.GetString("custom-endpoint"),
 			CustomId:             viper.GetString("custom-id"),
 			XtreamGenerateApiGet: viper.GetBool("xtream-api-get"),
+			BufferEnabled:        viper.GetBool("buffer-enabled"),
+			BufferDuration:       viper.GetInt("buffer-duration"),
+			BufferMaxMemory:      viper.GetInt("buffer-max-memory"),
+			BufferPreload:        viper.GetInt("buffer-preload"),
 		}
 
 		if conf.AdvertisedPort == 0 {
@@ -137,6 +141,12 @@ func init() {
 	rootCmd.Flags().String("xtream-base-url", "", "Xtream-code base url e.g(http://expample.tv:8080)")
 	rootCmd.Flags().Int("m3u-cache-expiration", 1, "M3U cache expiration in hour")
 	rootCmd.Flags().BoolP("xtream-api-get", "", false, "Generate get.php from xtream API instead of get.php original endpoint")
+	
+	// Buffer configuration flags
+	rootCmd.Flags().Bool("buffer-enabled", true, "Enable stream buffering for live content")
+	rootCmd.Flags().Int("buffer-duration", 5, "Buffer duration in seconds")
+	rootCmd.Flags().Int("buffer-max-memory", 10, "Maximum memory per buffer in MB")
+	rootCmd.Flags().Int("buffer-preload", 3, "Seconds to pre-buffer before starting playback")
 
 	if e := viper.BindPFlags(rootCmd.Flags()); e != nil {
 		log.Fatal("error binding PFlags to viper")

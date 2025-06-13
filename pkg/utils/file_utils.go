@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pierre-emmanuelJ/iptv-proxy/pkg/config"
+	"github.com/incmve/iptv-proxy/pkg/config"
 )
 
 func WriteResponseToFile(ctx *gin.Context, resp interface{}, contentType string, optionalURL ...string) {

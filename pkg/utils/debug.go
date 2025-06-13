@@ -3,7 +3,7 @@ package utils
 import (
 	"log"
 
-	"github.com/pierre-emmanuelJ/iptv-proxy/pkg/config"
+	"github.com/incmve/iptv-proxy/pkg/config"
 )
 
 // Logs a message if debug logging is enabled

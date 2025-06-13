@@ -26,7 +26,7 @@ import (
 	"strconv"
 
 	"github.com/incmve/iptv-proxy/pkg/config"
-	xtream "github.com/tellytv/go.xtream-codes"
+	xtream "github.com/incmve/iptv-proxy/pkg/xtream-codes-fixed"
 )
 
 const (
@@ -144,7 +144,7 @@ func (c *Client) Action(config *config.ProxyConfig, action string, q url.Values)
 		if err != nil {
 			return
 		}
-		if len(q["limit"]) > 0 {
+		if len(q["limit"]) > 0 && q["limit"][0] != "" {
 			limit, err = strconv.Atoi(q["limit"][0])
 			if err != nil {
 				httpcode = http.StatusInternalServerError

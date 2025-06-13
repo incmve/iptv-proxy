@@ -63,6 +63,17 @@ func (c *Config) m3u8ReverseProxy(ctx *gin.Context) {
 }
 
 func (c *Config) stream(ctx *gin.Context, oriURL *url.URL) {
+	// Check if buffering is enabled for this stream
+	if c.shouldUseBuffering(oriURL) {
+		c.streamWithBuffer(ctx, oriURL)
+		return
+	}
+
+	// Fall back to direct streaming
+	c.streamDirect(ctx, oriURL)
+}
+
+func (c *Config) streamDirect(ctx *gin.Context, oriURL *url.URL) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", oriURL.String(), nil)
@@ -86,6 +97,89 @@ func (c *Config) stream(ctx *gin.Context, oriURL *url.URL) {
 		io.Copy(w, resp.Body) // nolint: errcheck
 		return false
 	})
+}
+
+func (c *Config) streamWithBuffer(ctx *gin.Context, oriURL *url.URL) {
+	// Create buffered stream writer
+	bufferedWriter, err := NewBufferedStreamWriter(oriURL.String(), ctx.Request.Header)
+	if err != nil {
+		log.Printf("[stream] Failed to create buffered writer for %s: %v", oriURL.String(), err)
+		// Fall back to direct streaming
+		c.streamDirect(ctx, oriURL)
+		return
+	}
+	defer bufferedWriter.Close()
+
+	// Pre-buffer data before starting playback
+	preloadDuration := time.Duration(c.ProxyConfig.BufferPreload) * time.Second
+	if preloadDuration > 0 {
+		log.Printf("[stream] Pre-buffering %v seconds for %s", preloadDuration, oriURL.String())
+		
+		// Wait for buffer to accumulate data
+		startTime := time.Now()
+		for time.Since(startTime) < preloadDuration {
+			// Check if buffer has data or if we should timeout
+			select {
+			case <-ctx.Done():
+				log.Printf("[stream] Client disconnected during pre-buffering")
+				return
+			default:
+				time.Sleep(100 * time.Millisecond) // Check every 100ms
+			}
+		}
+		log.Printf("[stream] Pre-buffering complete, starting playback")
+	}
+
+	// Set appropriate headers
+	ctx.Header("Content-Type", "video/mp2t") // Default to MPEG-TS for IPTV
+	ctx.Header("Cache-Control", "no-cache")
+	ctx.Header("Connection", "keep-alive")
+	
+	log.Printf("[stream] Starting buffered stream for %s", oriURL.String())
+
+	// Stream buffered data to client
+	ctx.Stream(func(w io.Writer) bool {
+		buf := make([]byte, DefaultChunkSize)
+		n, err := bufferedWriter.Read(buf)
+		if n > 0 {
+			w.Write(buf[:n]) // nolint: errcheck
+		}
+		if err != nil {
+			if err != io.EOF {
+				log.Printf("[stream] Buffer read error: %v", err)
+			}
+			return false
+		}
+		return true
+	})
+}
+
+func (c *Config) shouldUseBuffering(oriURL *url.URL) bool {
+	// Check if buffering is globally enabled
+	if !c.ProxyConfig.BufferEnabled {
+		return false
+	}
+	
+	// Enable buffering for live streams but not for VOD/series content
+	urlPath := oriURL.Path
+	
+	// Skip buffering for HLS segments and manifest files
+	if strings.HasSuffix(urlPath, ".m3u8") || strings.HasSuffix(urlPath, ".ts") {
+		return false
+	}
+	
+	// Skip buffering for movie/series content (usually large files)
+	if strings.Contains(urlPath, "/movie/") || strings.Contains(urlPath, "/series/") {
+		return false
+	}
+	
+	// Enable buffering for live TV streams
+	if strings.Contains(urlPath, "/live/") || strings.Contains(urlPath, "/get.php") {
+		return true
+	}
+	
+	// Default: enable buffering for live content
+	return true
 }
 
 func (c *Config) xtreamStream(ctx *gin.Context, oriURL *url.URL) {
@@ -160,4 +254,10 @@ func (c *Config) appAuthenticate(ctx *gin.Context) {
 	}
 
 	ctx.Request.Body = ioutil.NopCloser(bytes.NewReader(contents))
+}
+
+func (c *Config) bufferStats(ctx *gin.Context) {
+	manager := GetBufferManager()
+	stats := manager.GetStats()
+	ctx.JSON(http.StatusOK, stats)
 }

@@ -27,6 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/jamesnetherton/m3u"
@@ -68,13 +69,26 @@ func NewServer(config *config.ProxyConfig) (*Config, error) {
 		endpointAntiColision = trimmedCustomId
 	}
 
-	return &Config{
-		config,
-		&p,
-		nil,
-		defaultProxyfiedM3UPath,
-		endpointAntiColision,
-	}, nil
+	serverConfig := &Config{
+		ProxyConfig:          config,
+		playlist:             &p,
+		track:                nil,
+		proxyfiedM3UPath:     defaultProxyfiedM3UPath,
+		endpointAntiColision: endpointAntiColision,
+	}
+
+	// Initialize buffer manager with configuration
+	if config.BufferEnabled {
+		bufferManager := GetBufferManager()
+		bufferDuration := time.Duration(config.BufferDuration) * time.Second
+		bufferManager.SetBufferDuration(bufferDuration)
+		log.Printf("[iptv-proxy] Buffer enabled: duration=%ds, max_memory=%dMB, preload=%ds", 
+			config.BufferDuration, config.BufferMaxMemory, config.BufferPreload)
+	} else {
+		log.Printf("[iptv-proxy] Buffer disabled")
+	}
+
+	return serverConfig, nil
 }
 
 // Serve the iptv-proxy api

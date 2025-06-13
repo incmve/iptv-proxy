@@ -29,6 +29,11 @@ import (
 func (c *Config) routes(r *gin.RouterGroup) {
 	r = r.Group(c.CustomEndpoint)
 
+	// Add buffer statistics endpoint
+	if c.ProxyConfig.BufferEnabled {
+		r.GET("/buffer-stats", c.authenticate, c.bufferStats)
+	}
+
 	//Xtream service endopoints
 	if c.ProxyConfig.XtreamBaseURL != "" {
 		c.xtreamRoutes(r)
