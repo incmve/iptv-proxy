@@ -35,7 +35,6 @@ services:
       # If your are using local m3u file instead of m3u remote file
       # put your m3u file in this folder
       - /data/apps/iptv-proxy:/root/iptv
-    container_name: "iptv-proxy"
     restart: always
     environment:
       # if you are using m3u remote file
