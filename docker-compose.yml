@@ -27,7 +27,7 @@ services:
       - UPDATER_PERIOD=
       - HTTPPROXY=off
       - HTTP_CONTROL_SERVER_ADDRESS=:8001
-    
+
   iptv-proxy:
     build:
       context: .
