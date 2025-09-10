@@ -9,7 +9,7 @@ NOTE: This fork of the [original project](https://github.com/pierre-emmanuelJ/ip
 - Continue on error EXTINF
 - Added Gluetun for VPN
 
-## Description
+## Description 
 
 Iptv-Proxy is a project to proxyfie an m3u file
 and to proxyfie an Xtream iptv service (client API).
