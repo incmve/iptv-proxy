@@ -29,9 +29,8 @@ services:
       - HTTP_CONTROL_SERVER_ADDRESS=:8001
 
   iptv-proxy:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: incmve/iptv-proxy
+    container_name: iptv-proxy
     volumes:
       # If your are using local m3u file instead of m3u remote file
       # put your m3u file in this folder
