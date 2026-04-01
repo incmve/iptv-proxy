@@ -37,23 +37,18 @@ services:
       - /data/apps/iptv-proxy:/root/iptv
     restart: always
     environment:
-      # if you are using m3u remote file
-      # M3U_URL: https://example.com/iptvfile.m3u
       M3U_URL: ${M3U_URL}
-      # Port to expose the IPTVs endpoints
-      PORT: 8080
-      # Hostname or IP to expose the IPTVs endpoints (for machine not for docker)
-      HOSTNAME: iptvproxy
-      GIN_MODE: release
-      ## Xtream-code proxy configuration
+      PORT: ${PORT:-8080}
+      HOSTNAME: ${HOSTNAME:-iptvproxy}
+      GIN_MODE: ${GIN_MODE:-release}
       USER: ${PROXY_USER}
       PASSWORD: ${PROXY_PASSWORD}
-      BUFFER_ENABLED: "true"
-      BUFFER_DURATION: "5"
-      BUFFER_MAX_MEMORY: "10"
-      BUFFER_PRELOAD: "3"
+      BUFFER_ENABLED: ${BUFFER_ENABLED:-true}
+      BUFFER_DURATION: ${BUFFER_DURATION:-5}
+      BUFFER_MAX_MEMORY: ${BUFFER_MAX_MEMORY:-10}
+      BUFFER_PRELOAD: ${BUFFER_PRELOAD:-3}
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/iptv.m3u"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:${PORT:-8080}/iptv.m3u"]
       interval: 30s
       timeout: 5s
       retries: 3
