@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 // BufferManager manages multiple stream buffers
@@ -172,7 +172,7 @@ func (bm *BufferManager) GetBufferReader(streamURL string, headers http.Header) 
 		return nil, err
 	}
 
-	readerID := uuid.NewV4().String()
+	readerID := uuid.New().String()
 	reader := buffer.NewReader(readerID)
 
 	return reader, nil
