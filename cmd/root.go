@@ -143,7 +143,7 @@ func init() {
 	rootCmd.Flags().BoolP("xtream-api-get", "", false, "Generate get.php from xtream API instead of get.php original endpoint")
 
 	// Buffer configuration flags
-	rootCmd.Flags().Bool("buffer-enabled", true, "Enable stream buffering for live content")
+	rootCmd.Flags().Bool("buffer-enabled", false, "Enable stream buffering for live content")
 	rootCmd.Flags().Int("buffer-duration", 5, "Buffer duration in seconds")
 	rootCmd.Flags().Int("buffer-max-memory", 10, "Maximum memory per buffer in MB")
 	rootCmd.Flags().Int("buffer-preload", 3, "Seconds to pre-buffer before starting playback")
