@@ -4,13 +4,10 @@ RUN apk add --no-cache ca-certificates git
 
 WORKDIR /app
 
-# Copy module definition first — this layer is cached until go.mod changes
-COPY go.mod ./
-# Regenerates go.sum and downloads all dependencies
-RUN go mod tidy
-
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -a -o iptv-proxy .
+
+# -mod=mod allows go to update go.sum for any missing entries during build
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=mod -a -o iptv-proxy .
 
 FROM alpine:3
 
