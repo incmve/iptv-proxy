@@ -56,4 +56,10 @@ type ProxyConfig struct {
 	AdvertisedPort       int
 	HTTPS                bool
 	User, Password       CredentialString
+
+	// Buffer configuration
+	BufferEnabled   bool
+	BufferDuration  int // seconds
+	BufferMaxMemory int // MB
+	BufferPreload   int // seconds to pre-buffer before playback
 }

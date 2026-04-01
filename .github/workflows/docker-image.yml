@@ -2,9 +2,9 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "beta" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "beta" ]
 
 jobs:
   build:
@@ -16,11 +16,17 @@ jobs:
       with:
        username: ${{ secrets.DOCKERHUB_USERNAME }}
        password: ${{ secrets.DOCKERHUB_TOKEN }}
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+    - name: Set Docker tag
+      id: tag
+      run: |
+        if [ "${{ github.ref_name }}" = "master" ]; then
+          echo "tag=incmve/iptv-proxy:latest" >> $GITHUB_OUTPUT
+        else
+          echo "tag=incmve/iptv-proxy:${{ github.ref_name }}" >> $GITHUB_OUTPUT
+        fi
     - name: Build and push to dockerhub
       uses: docker/build-push-action@v5
       with:
-       context:
-       push: true
-       tags: incmve/iptv-proxy:latest
+       context: .
+       push: ${{ github.event_name == 'push' }}
+       tags: ${{ steps.tag.outputs.tag }}

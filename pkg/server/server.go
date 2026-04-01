@@ -83,7 +83,8 @@ func (c *Config) Serve() error {
 		return err
 	}
 
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Recovery())
 	router.Use(cors.Default())
 	group := router.Group("/")
 	c.routes(group)
