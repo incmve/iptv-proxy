@@ -1,0 +1,24 @@
+services:
+  iptv-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iptv-proxy-dev
+    ports:
+      - "8080:8080"
+    environment:
+      M3U_URL: ${M3U_URL}
+      PORT: 8080
+      HOSTNAME: localhost
+      GIN_MODE: debug
+      USER: ${PROXY_USER}
+      PASSWORD: ${PROXY_PASSWORD}
+      BUFFER_ENABLED: "true"
+      BUFFER_DURATION: "5"
+      BUFFER_MAX_MEMORY: "10"
+      BUFFER_PRELOAD: "3"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/iptv.m3u"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
