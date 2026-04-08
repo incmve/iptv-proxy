@@ -61,7 +61,13 @@ type StreamBuffer struct {
 	cancel       context.CancelFunc
 }
 
-// BufferReader represents a client reading from the buffer
+// BufferReader represents a client reading from the buffer.
+//
+// Not safe for concurrent use: Read mutates readIndex and lastRead under
+// buffer.mutex.RLock (a shared read lock), which only excludes writers on
+// the StreamBuffer — it does NOT synchronise concurrent callers of Read on
+// the same BufferReader instance. Each BufferReader must be owned and called
+// by exactly one goroutine for its entire lifetime.
 type BufferReader struct {
 	id        string
 	readIndex int
@@ -214,7 +220,8 @@ func (sb *StreamBuffer) findReadPosition(targetTime time.Time) int {
 	return bestIndex
 }
 
-// Read reads data from the buffer for a specific reader
+// Read reads the next buffered chunk into p.
+// Must be called from a single goroutine — see BufferReader for ownership rules.
 func (br *BufferReader) Read(p []byte) (int, error) {
 	br.buffer.mutex.RLock()
 	defer br.buffer.mutex.RUnlock()
