@@ -165,6 +165,10 @@ func (c *Config) xtreamGet(ctx *gin.Context) {
 	xtreamM3uCacheLock.RLock()
 	meta, ok := xtreamM3uCache[m3uURL.String()]
 	stale := !ok || time.Since(meta.Time).Hours() >= float64(c.M3UCacheExpiration)
+	var cachedPath string
+	if !stale {
+		cachedPath = meta.string
+	}
 	xtreamM3uCacheLock.RUnlock()
 
 	if stale {
@@ -178,15 +182,14 @@ func (c *Config) xtreamGet(ctx *gin.Context) {
 			ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
 			return
 		}
+		xtreamM3uCacheLock.RLock()
+		cachedPath = xtreamM3uCache[m3uURL.String()].string
+		xtreamM3uCacheLock.RUnlock()
 	}
 
 	ctx.Header("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, c.M3UFileName))
-	xtreamM3uCacheLock.RLock()
-	path := xtreamM3uCache[m3uURL.String()].string
-	xtreamM3uCacheLock.RUnlock()
 	ctx.Header("Content-Type", "application/octet-stream")
-
-	ctx.File(path)
+	ctx.File(cachedPath)
 }
 
 func (c *Config) xtreamApiGet(ctx *gin.Context) {
@@ -202,6 +205,10 @@ func (c *Config) xtreamApiGet(ctx *gin.Context) {
 	xtreamM3uCacheLock.RLock()
 	meta, ok := xtreamM3uCache[cacheName]
 	stale := !ok || time.Since(meta.Time).Hours() >= float64(c.M3UCacheExpiration)
+	var cachedPath string
+	if !stale {
+		cachedPath = meta.string
+	}
 	xtreamM3uCacheLock.RUnlock()
 
 	if stale {
@@ -215,15 +222,14 @@ func (c *Config) xtreamApiGet(ctx *gin.Context) {
 			ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
 			return
 		}
+		xtreamM3uCacheLock.RLock()
+		cachedPath = xtreamM3uCache[cacheName].string
+		xtreamM3uCacheLock.RUnlock()
 	}
 
 	ctx.Header("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, c.M3UFileName))
-	xtreamM3uCacheLock.RLock()
-	path := xtreamM3uCache[cacheName].string
-	xtreamM3uCacheLock.RUnlock()
 	ctx.Header("Content-Type", "application/octet-stream")
-
-	ctx.File(path)
+	ctx.File(cachedPath)
 
 }
 
