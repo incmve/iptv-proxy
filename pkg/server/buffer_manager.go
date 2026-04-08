@@ -112,11 +112,7 @@ func (bm *BufferManager) startBuffering(streamURL string, buffer *StreamBuffer, 
 
 // bufferFromSource connects to the source and buffers data
 func (bm *BufferManager) bufferFromSource(streamURL string, buffer *StreamBuffer, headers http.Header) error {
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	req, err := http.NewRequest("GET", streamURL, nil)
+	req, err := http.NewRequestWithContext(buffer.ctx, "GET", streamURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
 	}
@@ -128,7 +124,7 @@ func (bm *BufferManager) bufferFromSource(streamURL string, buffer *StreamBuffer
 		}
 	}
 
-	resp, err := client.Do(req)
+	resp, err := streamClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to connect to source: %v", err)
 	}

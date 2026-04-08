@@ -156,11 +156,11 @@ func (sb *StreamBuffer) Write(data []byte) (int, error) {
 
 // NewReader creates a new reader for this buffer
 func (sb *StreamBuffer) NewReader(id string) *BufferReader {
-	sb.readersMutex.Lock()
-	defer sb.readersMutex.Unlock()
-
 	sb.mutex.RLock()
 	defer sb.mutex.RUnlock()
+
+	sb.readersMutex.Lock()
+	defer sb.readersMutex.Unlock()
 
 	reader := &BufferReader{
 		id:       id,

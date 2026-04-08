@@ -27,6 +27,10 @@ services:
       - UPDATER_PERIOD=24h
       - HTTPPROXY=off
       - HTTP_CONTROL_SERVER_ADDRESS=:8001
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   iptv-proxy:
     image: incmve/iptv-proxy

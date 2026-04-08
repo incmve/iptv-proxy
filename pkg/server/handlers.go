@@ -143,11 +143,14 @@ func (c *Config) streamWithBuffer(ctx *gin.Context, oriURL *url.URL) {
 	ctx.Header("Cache-Control", "no-cache")
 	ctx.Header("Connection", "keep-alive")
 
+	buf := make([]byte, DefaultChunkSize)
 	ctx.Stream(func(w io.Writer) bool {
-		buf := make([]byte, DefaultChunkSize)
 		n, err := bufferedWriter.Read(buf)
 		if n > 0 {
 			w.Write(buf[:n]) // nolint: errcheck
+		} else if err == nil {
+			// No data yet (buffer delay); yield to avoid pegging CPU.
+			time.Sleep(10 * time.Millisecond)
 		}
 		if err != nil {
 			if err != io.EOF {
