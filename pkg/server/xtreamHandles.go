@@ -77,9 +77,9 @@ func (c *Config) cacheXtreamM3u(playlist *m3u.Playlist, cacheName string) error 
 }
 
 func (c *Config) xtreamGenerateM3u(ctx *gin.Context, extension string) (*m3u.Playlist, error) {
-	client := c.xtreamClient
-
-	cat, err := client.GetLiveCategories()
+	c.xtreamMu.Lock()
+	cat, err := c.xtreamClient.GetLiveCategories()
+	c.xtreamMu.Unlock()
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,9 @@ func (c *Config) xtreamGenerateM3u(ctx *gin.Context, extension string) (*m3u.Pla
 	playlist.Tracks = make([]m3u.Track, 0)
 
 	for _, category := range cat {
-		live, err := client.GetLiveStreams(fmt.Sprint(category.ID))
+		c.xtreamMu.Lock()
+		live, err := c.xtreamClient.GetLiveStreams(fmt.Sprint(category.ID))
+		c.xtreamMu.Unlock()
 		if err != nil {
 			return nil, err
 		}
@@ -251,9 +253,9 @@ func (c *Config) xtreamPlayerAPI(ctx *gin.Context, q url.Values) {
 		action = q["action"][0]
 	}
 
-	client := c.xtreamClient
-
-	resp, httpcode, err := client.Action(c.ProxyConfig, action, q)
+	c.xtreamMu.Lock()
+	resp, httpcode, err := c.xtreamClient.Action(c.ProxyConfig, action, q)
+	c.xtreamMu.Unlock()
 	if err != nil {
 		ctx.AbortWithError(httpcode, err) // nolint: errcheck
 		return
@@ -265,9 +267,9 @@ func (c *Config) xtreamPlayerAPI(ctx *gin.Context, q url.Values) {
 }
 
 func (c *Config) xtreamXMLTV(ctx *gin.Context) {
-	client := c.xtreamClient
-
-	resp, err := client.GetXMLTV()
+	c.xtreamMu.Lock()
+	resp, err := c.xtreamClient.GetXMLTV()
+	c.xtreamMu.Unlock()
 	if err != nil {
 		ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
 		return

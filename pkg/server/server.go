@@ -27,6 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/gin-contrib/cors"
 	"github.com/jamesnetherton/m3u"
@@ -55,7 +56,11 @@ type Config struct {
 
 	// xtreamClient is created once at startup and reused across all Xtream API
 	// handlers to avoid a redundant auth round-trip on every request.
+	// xtreamMu serialises all calls to xtreamClient: the underlying vendor library
+	// writes to an unprotected map[int]Stream on every GetStreams call with no
+	// internal locking, so concurrent gin handlers would trigger a runtime panic.
 	xtreamClient *xtreamproxy.Client
+	xtreamMu     sync.Mutex
 }
 
 // NewServer initialize a new server configuration
