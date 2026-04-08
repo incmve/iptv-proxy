@@ -39,6 +39,30 @@ func (c *Config) getM3U(ctx *gin.Context) {
 	ctx.File(c.proxyfiedM3UPath)
 }
 
+// sharedTransport is a single connection pool shared across all upstream requests.
+// This prevents FD exhaustion from per-request transports accumulating idle connections.
+var sharedTransport = &http.Transport{
+	MaxIdleConns:        100,
+	MaxIdleConnsPerHost: 10,
+	IdleConnTimeout:     90 * time.Second,
+}
+
+// streamClient is the shared client for direct stream proxying.
+var streamClient = &http.Client{
+	Transport: sharedTransport,
+	Timeout:   30 * time.Second,
+}
+
+// hlsClient is the shared client for HLS streams; it does not follow redirects
+// so that redirect location headers can be inspected and re-routed.
+var hlsClient = &http.Client{
+	Transport: sharedTransport,
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+	Timeout: 30 * time.Second,
+}
+
 func (c *Config) reverseProxy(ctx *gin.Context) {
 	rpURL, err := url.Parse(c.track.URI)
 	if err != nil {
@@ -70,9 +94,7 @@ func (c *Config) stream(ctx *gin.Context, oriURL *url.URL) {
 }
 
 func (c *Config) streamDirect(ctx *gin.Context, oriURL *url.URL) {
-	client := &http.Client{Timeout: 30 * time.Second}
-
-	req, err := http.NewRequest("GET", oriURL.String(), nil)
+	req, err := http.NewRequestWithContext(ctx.Request.Context(), "GET", oriURL.String(), nil)
 	if err != nil {
 		ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
 		return
@@ -80,7 +102,7 @@ func (c *Config) streamDirect(ctx *gin.Context, oriURL *url.URL) {
 
 	mergeHttpHeader(req.Header, ctx.Request.Header)
 
-	resp, err := client.Do(req)
+	resp, err := streamClient.Do(req)
 	if err != nil {
 		ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
 		return

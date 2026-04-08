@@ -52,6 +52,10 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     network_mode: "service:gluetun" # Connect to gluetun service (only if in the same compose file)
     depends_on:
       gluetun:
