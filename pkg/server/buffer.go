@@ -156,29 +156,30 @@ func (sb *StreamBuffer) Write(data []byte) (int, error) {
 
 // NewReader creates a new reader for this buffer
 func (sb *StreamBuffer) NewReader(id string) *BufferReader {
-	sb.mutex.RLock()
-	defer sb.mutex.RUnlock()
-
-	sb.readersMutex.Lock()
-	defer sb.readersMutex.Unlock()
-
 	reader := &BufferReader{
 		id:       id,
 		buffer:   sb,
 		lastRead: time.Now(),
 	}
 
-	// Start reading from a position that's bufferTime behind current write.
-	// findReadPosition returns an absolute ring index; convert to a relative
-	// offset from sb.readIndex so that Read()'s arithmetic is consistent.
-	now := time.Now()
-	targetTime := now.Add(-sb.bufferTime)
-	absPos := sb.findReadPosition(targetTime)
+	// Read buffer state under mutex, then release before acquiring readersMutex.
+	// Holding two locks simultaneously creates deadlock risk with other methods
+	// that acquire only one of the two locks.
+	sb.mutex.RLock()
 	if sb.size > 0 {
+		// Start reading from a position that's bufferTime behind current write.
+		// findReadPosition returns an absolute ring index; convert to a relative
+		// offset from sb.readIndex so that Read()'s arithmetic is consistent.
+		targetTime := time.Now().Add(-sb.bufferTime)
+		absPos := sb.findReadPosition(targetTime)
 		reader.readIndex = (absPos - sb.readIndex + sb.capacity) % sb.capacity
 	}
+	sb.mutex.RUnlock()
 
+	sb.readersMutex.Lock()
 	sb.readers[id] = reader
+	sb.readersMutex.Unlock()
+
 	log.Printf("[buffer] New reader %s created, starting at index %d", id, reader.readIndex)
 
 	return reader
@@ -330,18 +331,25 @@ func (sb *StreamBuffer) cleanupStaleReaders() {
 
 // Stats returns buffer statistics
 func (sb *StreamBuffer) Stats() map[string]interface{} {
+	// Read each lock group separately to avoid simultaneous dual-lock acquisition.
 	sb.mutex.RLock()
-	defer sb.mutex.RUnlock()
+	capacity := sb.capacity
+	size := sb.size
+	totalBytes := sb.totalBytes
+	bufferTime := sb.bufferTime
+	lastWrite := sb.lastWrite
+	sb.mutex.RUnlock()
 
 	sb.readersMutex.RLock()
-	defer sb.readersMutex.RUnlock()
+	readers := len(sb.readers)
+	sb.readersMutex.RUnlock()
 
 	return map[string]interface{}{
-		"capacity":    sb.capacity,
-		"size":        sb.size,
-		"total_bytes": sb.totalBytes,
-		"readers":     len(sb.readers),
-		"buffer_time": sb.bufferTime.Seconds(),
-		"last_write":  sb.lastWrite,
+		"capacity":    capacity,
+		"size":        size,
+		"total_bytes": totalBytes,
+		"readers":     readers,
+		"buffer_time": bufferTime.Seconds(),
+		"last_write":  lastWrite,
 	}
 }

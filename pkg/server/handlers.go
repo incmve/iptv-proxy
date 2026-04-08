@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -41,7 +42,13 @@ func (c *Config) getM3U(ctx *gin.Context) {
 
 // sharedTransport is a single connection pool shared across all upstream requests.
 // This prevents FD exhaustion from per-request transports accumulating idle connections.
+// No client-level Timeout is set: http.Client.Timeout is a total request lifetime deadline
+// that would kill live streams after 30 s. Connection establishment is bounded by DialContext.
 var sharedTransport = &http.Transport{
+	DialContext: (&net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}).DialContext,
 	MaxIdleConns:        100,
 	MaxIdleConnsPerHost: 10,
 	IdleConnTimeout:     90 * time.Second,
@@ -50,7 +57,6 @@ var sharedTransport = &http.Transport{
 // streamClient is the shared client for direct stream proxying.
 var streamClient = &http.Client{
 	Transport: sharedTransport,
-	Timeout:   30 * time.Second,
 }
 
 // hlsClient is the shared client for HLS streams; it does not follow redirects
@@ -60,7 +66,6 @@ var hlsClient = &http.Client{
 	CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
 	},
-	Timeout: 30 * time.Second,
 }
 
 func (c *Config) reverseProxy(ctx *gin.Context) {

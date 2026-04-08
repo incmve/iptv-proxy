@@ -103,7 +103,11 @@ func (bm *BufferManager) startBuffering(streamURL string, buffer *StreamBuffer, 
 		default:
 			if err := bm.bufferFromSource(streamURL, buffer, headers); err != nil {
 				log.Printf("[buffer-manager] Error buffering from source %s: %v", streamURL, err)
-				time.Sleep(5 * time.Second) // Wait before retry
+				select {
+				case <-buffer.ctx.Done():
+					return
+				case <-time.After(5 * time.Second):
+				}
 				continue
 			}
 		}
