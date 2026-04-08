@@ -52,7 +52,7 @@ services:
       BUFFER_MAX_MEMORY: ${BUFFER_MAX_MEMORY:-10}
       BUFFER_PRELOAD: ${BUFFER_PRELOAD:-3}
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:${PORT:-8080}/iptv.m3u"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:${PORT:-8080}/iptv.m3u?username=${PROXY_USER}&password=${PROXY_PASSWORD}"]
       interval: 30s
       timeout: 5s
       retries: 3

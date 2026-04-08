@@ -33,7 +33,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jamesnetherton/m3u"
-	xtreamapi "github.com/incmve/iptv-proxy/pkg/xtream-proxy"
 	"github.com/google/uuid"
 )
 
@@ -78,10 +77,7 @@ func (c *Config) cacheXtreamM3u(playlist *m3u.Playlist, cacheName string) error 
 }
 
 func (c *Config) xtreamGenerateM3u(ctx *gin.Context, extension string) (*m3u.Playlist, error) {
-	client, err := xtreamapi.New(c.XtreamUser.String(), c.XtreamPassword.String(), c.XtreamBaseURL, ctx.Request.UserAgent())
-	if err != nil {
-		return nil, err
-	}
+	client := c.xtreamClient
 
 	cat, err := client.GetLiveCategories()
 	if err != nil {
@@ -255,11 +251,7 @@ func (c *Config) xtreamPlayerAPI(ctx *gin.Context, q url.Values) {
 		action = q["action"][0]
 	}
 
-	client, err := xtreamapi.New(c.XtreamUser.String(), c.XtreamPassword.String(), c.XtreamBaseURL, ctx.Request.UserAgent())
-	if err != nil {
-		ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
-		return
-	}
+	client := c.xtreamClient
 
 	resp, httpcode, err := client.Action(c.ProxyConfig, action, q)
 	if err != nil {
@@ -273,11 +265,7 @@ func (c *Config) xtreamPlayerAPI(ctx *gin.Context, q url.Values) {
 }
 
 func (c *Config) xtreamXMLTV(ctx *gin.Context) {
-	client, err := xtreamapi.New(c.XtreamUser.String(), c.XtreamPassword.String(), c.XtreamBaseURL, ctx.Request.UserAgent())
-	if err != nil {
-		ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
-		return
-	}
+	client := c.xtreamClient
 
 	resp, err := client.GetXMLTV()
 	if err != nil {

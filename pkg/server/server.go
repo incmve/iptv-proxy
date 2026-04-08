@@ -31,6 +31,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/jamesnetherton/m3u"
 	"github.com/incmve/iptv-proxy/pkg/config"
+	xtreamproxy "github.com/incmve/iptv-proxy/pkg/xtream-proxy"
 	"github.com/google/uuid"
 
 	"github.com/gin-gonic/gin"
@@ -51,6 +52,10 @@ type Config struct {
 	proxyfiedM3UPath string
 
 	endpointAntiColision string
+
+	// xtreamClient is created once at startup and reused across all Xtream API
+	// handlers to avoid a redundant auth round-trip on every request.
+	xtreamClient *xtreamproxy.Client
 }
 
 // NewServer initialize a new server configuration
@@ -68,13 +73,22 @@ func NewServer(config *config.ProxyConfig) (*Config, error) {
 		endpointAntiColision = trimmedCustomId
 	}
 
-	return &Config{
-		config,
-		&p,
-		nil,
-		defaultProxyfiedM3UPath,
-		endpointAntiColision,
-	}, nil
+	c := &Config{
+		ProxyConfig:          config,
+		playlist:             &p,
+		proxyfiedM3UPath:     defaultProxyfiedM3UPath,
+		endpointAntiColision: endpointAntiColision,
+	}
+
+	if config.XtreamBaseURL != "" {
+		client, err := xtreamproxy.New(config.XtreamUser.String(), config.XtreamPassword.String(), config.XtreamBaseURL, "iptv-proxy")
+		if err != nil {
+			return nil, err
+		}
+		c.xtreamClient = client
+	}
+
+	return c, nil
 }
 
 // Serve the iptv-proxy api
