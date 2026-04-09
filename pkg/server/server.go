@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/jamesnetherton/m3u"
@@ -68,7 +69,16 @@ func NewServer(config *config.ProxyConfig) (*Config, error) {
 	var p m3u.Playlist
 	if config.RemoteURL.String() != "" {
 		var err error
-		p, err = m3u.Parse(config.RemoteURL.String())
+		for attempt := 1; attempt <= 5; attempt++ {
+			p, err = m3u.Parse(config.RemoteURL.String())
+			if err == nil {
+				break
+			}
+			log.Printf("[iptv-proxy] Failed to parse M3U (attempt %d/5): %v", attempt, err)
+			if attempt < 5 {
+				time.Sleep(5 * time.Second)
+			}
+		}
 		if err != nil {
 			return nil, err
 		}

@@ -67,7 +67,7 @@ var rootCmd = &cobra.Command{
 				xtreamUser = username
 				xtreamPassword = password
 				xtreamBaseURL = fmt.Sprintf("%s://%s", remoteHostURL.Scheme, remoteHostURL.Host)
-				log.Printf("[iptv-proxy] INFO: xtream service enabled with base url: %q username: %q", xtreamBaseURL, xtreamUser)
+				log.Printf("[iptv-proxy] INFO: xtream service enabled with base url: %q", xtreamBaseURL)
 			}
 		}
 
