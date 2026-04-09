@@ -48,8 +48,8 @@ services:
     restart: on-failure
     environment:
       M3U_URL: ${M3U_URL}
-      PORT: ${PORT:-8080}
-      HOSTNAME: ${HOSTNAME:-iptvproxy}
+      PORT: 8080
+      HOSTNAME: iptvproxy
       GIN_MODE: ${GIN_MODE:-release}
       USER: ${PROXY_USER}
       PASSWORD: ${PROXY_PASSWORD}
@@ -58,10 +58,11 @@ services:
       BUFFER_MAX_MEMORY: ${BUFFER_MAX_MEMORY:-10}
       BUFFER_PRELOAD: ${BUFFER_PRELOAD:-3}
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:${PORT:-8080}/iptv.m3u?username=${PROXY_USER}&password=${PROXY_PASSWORD}"]
-      interval: 30s
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 60s
       timeout: 5s
       retries: 3
+      start_period: 30s
     ulimits:
       nofile:
         soft: 65536

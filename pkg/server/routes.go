@@ -20,6 +20,7 @@ package server
 
 import (
 	"fmt"
+	"net/http"
 	"path"
 	"strings"
 
@@ -27,6 +28,10 @@ import (
 )
 
 func (c *Config) routes(r *gin.RouterGroup) {
+	r.GET("/health", func(ctx *gin.Context) {
+		ctx.Status(http.StatusOK)
+	})
+
 	r = r.Group(c.CustomEndpoint)
 
 	// Buffer statistics endpoint (only when buffering is enabled)
