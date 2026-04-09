@@ -76,7 +76,7 @@ func Parse(fileName string) (Playlist, error) {
 			}
 			length, parseErr := strconv.Atoi(strings.Split(trackInfo[0], " ")[0])
 			if parseErr != nil {
-				return Playlist{}, errors.New("unable to parse length")
+				continue
 			}
 			track := &Track{strings.Trim(trackInfo[1], " "), length, "", nil}
 			tagList := tagsRegExp.FindAllString(line, -1)
