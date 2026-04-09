@@ -86,6 +86,12 @@ func (f *FlexInt) UnmarshalJSON(data []byte) error {
 
 	data = bytes.Trim(data, `" `)
 
+	// Treat empty string from provider as zero, matching FlexFloat behaviour.
+	if len(data) == 0 {
+		*f = FlexInt(0)
+		return nil
+	}
+
 	err := json.Unmarshal(data, &v)
 	*f = FlexInt(v)
 	return err
