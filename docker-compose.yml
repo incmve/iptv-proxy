@@ -3,6 +3,12 @@ services:
     image: qmcgaw/gluetun
     container_name: gluetun
     restart: always
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     cap_add:
       - NET_ADMIN
     devices:
@@ -39,7 +45,7 @@ services:
       # If your are using local m3u file instead of m3u remote file
       # put your m3u file in this folder
       - /data/apps/iptv-proxy:/root/iptv
-    restart: always
+    restart: on-failure
     environment:
       M3U_URL: ${M3U_URL}
       PORT: ${PORT:-8080}
