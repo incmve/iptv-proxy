@@ -231,7 +231,7 @@ github.com/spf13/viper/internal/features
 # github.com/subosito/gotenv v1.6.0
 ## explicit; go 1.18
 github.com/subosito/gotenv
-# github.com/tellytv/go.xtream-codes v0.0.0-20220204001149-59925bc76764
+# github.com/tellytv/go.xtream-codes v0.0.0-20220204001149-59925bc76764 => github.com/incmve/go.xtream-codes v0.0.0-20260409060544-af83c64140e0
 ## explicit; go 1.17
 github.com/tellytv/go.xtream-codes
 # github.com/twitchyliquid64/golang-asm v0.15.1
@@ -343,3 +343,4 @@ gopkg.in/ini.v1
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# github.com/tellytv/go.xtream-codes => github.com/incmve/go.xtream-codes v0.0.0-20260409060544-af83c64140e0
