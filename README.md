@@ -103,9 +103,9 @@ All flags can also be set as environment variables (replace `-` with `_`, e.g. `
 | `--xtream-base-url` | `""` | Original Xtream base URL |
 | `--m3u-cache-expiration` | `1` | M3U cache TTL in hours |
 | `--xtream-api-get` | `false` | Generate playlist via Xtream API instead of `/get.php` |
-| `--buffer-enabled` | `true` | Enable stream buffering for live content |
+| `--buffer-enabled` | `false` | Enable stream buffering for live content |
 | `--buffer-duration` | `5` | Buffer duration in seconds |
-| `--buffer-max-memory` | `10` | Max memory per buffer in MB |
+| `--buffer-max-memory` | `10` | Max memory per buffer in MB (see sizing below) |
 | `--buffer-preload` | `3` | Seconds to pre-buffer before playback starts |
 
 ---
@@ -120,6 +120,19 @@ Live streams are automatically buffered to absorb network jitter from the upstre
 - Buffering is skipped automatically for HLS segments (`.m3u8`, `.ts`) and VOD/series content
 - Stale readers (inactive for 2+ minutes) are cleaned up automatically
 - A buffer with no readers is released after a 30-second grace period
+
+**Memory sizing (`--buffer-max-memory`):**
+
+The required memory depends on your stream bitrate × buffer duration:
+
+| Quality | Bitrate | 5s buffer needs |
+|---|---|---|
+| SD | ~2 Mbps | ~1.25 MB |
+| HD | ~8 Mbps | ~5 MB |
+| FHD | ~15 Mbps | ~9.4 MB |
+| 4K | ~25+ Mbps | ~15+ MB |
+
+The default of 10 MB covers SD and HD comfortably. Raise it if you stream FHD or 4K.
 
 **Disable buffering:**
 ```bash
