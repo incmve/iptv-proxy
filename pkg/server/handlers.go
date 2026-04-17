@@ -71,7 +71,7 @@ var hlsClient = &http.Client{
 func (c *Config) reverseProxy(ctx *gin.Context) {
 	rpURL, err := url.Parse(c.track.URI)
 	if err != nil {
-		ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal error", "detail": err.Error()})
 		return
 	}
 
@@ -83,7 +83,7 @@ func (c *Config) m3u8ReverseProxy(ctx *gin.Context) {
 
 	rpURL, err := url.Parse(strings.ReplaceAll(c.track.URI, path.Base(c.track.URI), id))
 	if err != nil {
-		ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal error", "detail": err.Error()})
 		return
 	}
 
@@ -101,7 +101,7 @@ func (c *Config) stream(ctx *gin.Context, oriURL *url.URL) {
 func (c *Config) streamDirect(ctx *gin.Context, oriURL *url.URL) {
 	req, err := http.NewRequestWithContext(ctx.Request.Context(), "GET", oriURL.String(), nil)
 	if err != nil {
-		ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal error", "detail": err.Error()})
 		return
 	}
 
@@ -109,7 +109,7 @@ func (c *Config) streamDirect(ctx *gin.Context, oriURL *url.URL) {
 
 	resp, err := streamClient.Do(req)
 	if err != nil {
-		ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
+		ctx.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "upstream unavailable", "detail": err.Error()})
 		return
 	}
 	defer resp.Body.Close()
@@ -233,7 +233,7 @@ type authRequest struct {
 func (c *Config) authenticate(ctx *gin.Context) {
 	var authReq authRequest
 	if err := ctx.Bind(&authReq); err != nil {
-		ctx.AbortWithError(http.StatusBadRequest, err) // nolint: errcheck
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "bad request", "detail": err.Error()})
 		return
 	}
 	if c.ProxyConfig.User.String() != authReq.Username || c.ProxyConfig.Password.String() != authReq.Password {
@@ -245,17 +245,17 @@ func (c *Config) authenticate(ctx *gin.Context) {
 func (c *Config) appAuthenticate(ctx *gin.Context) {
 	contents, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
-		ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal error", "detail": err.Error()})
 		return
 	}
 
 	q, err := url.ParseQuery(string(contents))
 	if err != nil {
-		ctx.AbortWithError(http.StatusInternalServerError, err) // nolint: errcheck
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal error", "detail": err.Error()})
 		return
 	}
 	if len(q["username"]) == 0 || len(q["password"]) == 0 {
-		ctx.AbortWithError(http.StatusBadRequest, fmt.Errorf("bad body url query parameters")) // nolint: errcheck
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "bad request", "detail": "missing username or password"})
 		return
 	}
 	log.Printf("[iptv-proxy] %v | %s |App Auth\n", time.Now().Format("2006/01/02 - 15:04:05"), ctx.ClientIP())
