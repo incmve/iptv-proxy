@@ -63,4 +63,4 @@ require (
 
 go 1.25.0
 
-replace github.com/tellytv/go.xtream-codes => github.com/incmve/go.xtream-codes v0.0.0-20260409061850-eb213802a9de
+replace github.com/tellytv/go.xtream-codes => github.com/incmve/go.xtream-codes v0.0.0-20261122091650-de10b93f10c5
