@@ -5,6 +5,7 @@
 pub mod api;
 pub mod auth;
 pub mod cache;
+pub mod catchup;
 pub mod config;
 pub mod headers;
 pub mod live;
@@ -116,6 +117,18 @@ pub fn router(state: Shared) -> Router {
             get(live::hlsr).head(live::hlsr),
         )
         .route("/play/{token}/{kind}", get(live::play).head(live::play))
+        .route(
+            "/timeshift/{user}/{pass}/{duration}/{start}/{id}",
+            get(catchup::path_style).head(catchup::path_style),
+        )
+        .route(
+            "/timeshift.php",
+            get(catchup::query_style).post(catchup::query_style),
+        )
+        .route(
+            "/streaming/timeshift.php",
+            get(catchup::query_style).post(catchup::query_style),
+        )
         .with_state(state)
 }
 
