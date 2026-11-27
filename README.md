@@ -19,7 +19,7 @@ Design, decisions and milestones: [docs/DESIGN.md](docs/DESIGN.md).
 | Live / HLS | planned |
 | EPG, `get.php` | planned |
 | Catch-up (path + query style) | planned |
-| Connection limit | planned |
+| Connection limit | left to the provider; slots released at once (tested) |
 
 ## Run
 

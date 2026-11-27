@@ -66,26 +66,21 @@ Same job, same URLs, fewer bugs. [tuliprox](https://github.com/euzu/tuliprox)
 
 ## Connection limit (provider allows 2)
 
-One TiviMate stream plus one Jellyfin movie already uses both slots, so this is
-in scope from the start (milestone 6).
+**The proxy does not decide who may watch.** The provider enforces its own
+limit (it refuses or drops a connection); a second set of rules in the proxy
+could only disagree with it. The proxy's job is to never waste a slot:
 
-- Limit read from the login answer (`user_info.max_connections`) at startup and
-  every 10 minutes; `MAX_CONNECTIONS` overrides it.
-- A slot is held by every running stream response (live TS, VOD, catch-up) and
-  released when the client disconnects. An HLS channel holds one slot while
-  segments are being fetched, with a 15 s TTL between fetches (tuliprox
-  `hls_session_ttl_secs`).
-- `player_api.php`, `xmltv.php` and `get.php` do not take a slot. To verify:
-  `active_cons` in the login answer while M3Usort runs its catalog job.
-- **Grace (tuliprox `grace_period_millis`):** when all slots are used and the
-  same client IP opens a new stream (zapping, seeking), wait up to 2 s for one
-  of its own old streams to close before deciding.
-- **Shared live (later, optional):** a second client on a live channel that is
-  already streaming joins the existing upstream instead of taking a slot.
-- **When full:** _open question_ — reject the new stream (503 + `Retry-After`),
-  or end the oldest stream.
-- Status (`/status`, proxy credentials required): limit, active streams, client
-  IP, kind, id, duration.
+- When a player disconnects, the provider connection closes immediately
+  (tested in `tests/disconnect.rs`: two players, each hangs up, the upstream
+  count goes 2 → 1 → 0 within milliseconds).
+- No parallel or speculative upstream requests; open-retries are sequential
+  and only on 5xx/connect errors, so a provider "limit reached" answer (4xx)
+  is passed straight to the player.
+- The provider's answer (status and body) reaches the player unchanged, so the
+  player shows the provider's own message.
+- `player_api.php`, `xmltv.php` and `get.php` are not streams. To verify on the
+  real provider: `active_cons` in the login answer while M3Usort runs its
+  catalog job should stay 0.
 
 ## Dropped from the Go version
 
@@ -111,8 +106,11 @@ shared HLS segment cache, HDHomeRun.
 - [ ] **4. EPG + playlists:** streamed `xmltv.php`, `get.php`,
       `/{M3U_FILE_NAME}`, disk cache.
 - [ ] **5. Catch-up:** path and query styles.
-- [ ] **6. Connection limit:** slot counting, grace, status page, policy when full.
+- [x] ~~**6. Connection limit**~~ — dropped: the provider enforces its limit.
+      The proxy only guarantees it releases slots at once (tested).
 - [ ] **7. Side-by-side test** on port 8081 behind Gluetun: compare JSON answers
       with the Go proxy, add as a second playlist in TiviMate, then switch.
-- [ ] **8. Shared live streams** (optional).
+- [ ] **8. Shared live streams** (optional): two players on the same live
+      channel share one provider connection. Saves a slot instead of deciding
+      who gets one.
 - [ ] **9. VOD throttle** (optional, off by default).
