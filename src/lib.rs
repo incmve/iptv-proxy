@@ -6,7 +6,9 @@ pub mod api;
 pub mod auth;
 pub mod config;
 pub mod headers;
+pub mod live;
 pub mod rewrite;
+pub mod shared;
 pub mod stream;
 pub mod throttle;
 pub mod upstream;
@@ -30,6 +32,10 @@ pub struct AppState {
     /// Follows provider redirects (streams, API).
     pub http: reqwest::Client,
     pub rewriter: rewrite::Rewriter,
+    /// Load-balancer host per HLS channel.
+    pub hls: live::HlsOrigins,
+    /// Shared live channels.
+    pub shared: shared::Registry,
 }
 
 pub type Shared = Arc<AppState>;
@@ -42,6 +48,8 @@ impl AppState {
             cfg,
             http,
             rewriter,
+            hls: Default::default(),
+            shared: Default::default(),
         })
     }
 
@@ -89,6 +97,17 @@ pub fn router(state: Shared) -> Router {
         )
         .route("/movie/{user}/{pass}/{id}", get(movie).head(movie))
         .route("/series/{user}/{pass}/{id}", get(series).head(series))
+        .route("/live/{user}/{pass}/{id}", get(live::live).head(live::live))
+        .route(
+            "/{user}/{pass}/{id}",
+            get(live::live_alt).head(live::live_alt),
+        )
+        .route("/hls/{token}/{chunk}", get(live::hls).head(live::hls))
+        .route(
+            "/hlsr/{token}/{user}/{pass}/{channel}/{hash}/{chunk}",
+            get(live::hlsr).head(live::hlsr),
+        )
+        .route("/play/{token}/{kind}", get(live::play).head(live::play))
         .with_state(state)
 }
 
