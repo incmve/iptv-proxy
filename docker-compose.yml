@@ -1,0 +1,96 @@
+# Side-by-side test: the Go proxy stays on 8080, the Rust proxy runs on 8081.
+# Both share Gluetun's network, so both go through the VPN.
+# When the Rust version has replaced the Go one: remove the iptv-proxy service,
+# and either set PORT 8080 on iptv-proxy-rs or keep 8081 and update clients.
+services:
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - 8888:8888/tcp # gluetun HTTP proxy
+      - 8388:8388/tcp # gluetun Shadowsocks
+      - 8388:8388/udp # gluetun Shadowsocks
+      - 8080:8080     # iptv-proxy (Go)
+      - 8081:8081     # iptv-proxy-rs (Rust)
+    volumes:
+      - /data/apps/gluetun:/gluetun
+    environment:
+      - BLOCK_MALICIOUS=off
+      - BLOCK_ADS=off
+      - BLOCK_SURVEILLANCE=off
+      - VPN_SERVICE_PROVIDER=privado
+      - OPENVPN_USER=${VPN_USER}
+      - OPENVPN_PASSWORD=${VPN_PASS}
+      - SERVER_COUNTRIES=Netherlands
+      - FREE_ONLY=off
+      - DNS_PLAINTEXT_ADDRESS=1.1.1.1
+      - TZ=Europe/Amsterdam
+      - UPDATER_PERIOD=
+      - HTTPPROXY=off
+      - HTTP_CONTROL_SERVER_ADDRESS=:8001
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  iptv-proxy:
+    image: incmve/iptv-proxy:beta
+    container_name: iptv-proxy
+    volumes:
+      - /data/apps/iptv-proxy:/root/iptv
+    restart: on-failure
+    environment:
+      M3U_URL: ${M3U_URL}
+      PORT: 8080
+      HOSTNAME: ${HOSTNAME:-iptvproxy}
+      GIN_MODE: release
+      USER: ${PROXY_USER}
+      PASSWORD: ${PROXY_PASSWORD}
+      BUFFER_ENABLED: "false"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+
+  iptv-proxy-rs:
+    image: incmve/iptv-proxy:rust
+    container_name: iptv-proxy-rs
+    restart: on-failure
+    environment:
+      M3U_URL: ${M3U_URL}
+      PORT: 8081
+      HOSTNAME: ${HOSTNAME:-iptvproxy}
+      USER: ${PROXY_USER}
+      PASSWORD: ${PROXY_PASSWORD}
+      LOG_LEVEL: info
+      TZ: Europe/Amsterdam
+    # The image's own HEALTHCHECK reads PORT, so it checks 8081.
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
