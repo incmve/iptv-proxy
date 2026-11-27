@@ -4,6 +4,7 @@
 
 pub mod api;
 pub mod auth;
+pub mod cache;
 pub mod config;
 pub mod headers;
 pub mod live;
@@ -36,6 +37,8 @@ pub struct AppState {
     pub hls: live::HlsOrigins,
     /// Shared live channels.
     pub shared: shared::Registry,
+    /// One download at a time per cached playlist/EPG.
+    pub cache_locks: cache::Locks,
 }
 
 pub type Shared = Arc<AppState>;
@@ -50,6 +53,7 @@ impl AppState {
             rewriter,
             hls: Default::default(),
             shared: Default::default(),
+            cache_locks: Default::default(),
         })
     }
 
@@ -89,7 +93,11 @@ impl AppState {
 }
 
 pub fn router(state: Shared) -> Router {
+    let m3u_file = format!("/{}", state.cfg.m3u_file_name.trim_start_matches('/'));
     Router::new()
+        .route("/get.php", get(cache::get_php).post(cache::get_php))
+        .route("/xmltv.php", get(cache::xmltv).post(cache::xmltv))
+        .route(&m3u_file, get(cache::m3u_file))
         .route("/health", get(health))
         .route(
             "/player_api.php",

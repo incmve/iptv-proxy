@@ -63,6 +63,10 @@ pub struct Config {
     pub m3u_params: Vec<(String, String)>,
     /// Cap per VOD stream in kbit/s (`VOD_THROTTLE_KBPS`, 0 = off).
     pub vod_throttle_kbps: u64,
+    /// Minutes to cache `xmltv.php` (`XMLTV_CACHE_MINUTES`, default 60, 0 = off).
+    pub xmltv_cache_minutes: u64,
+    /// Where cached playlists/EPG are kept (`CACHE_DIR`).
+    pub cache_dir: std::path::PathBuf,
     /// Share one provider connection per live MPEG-TS channel
     /// (`SHARE_LIVE_STREAMS`, default on).
     pub share_live: bool,
@@ -161,8 +165,25 @@ impl Config {
             xtream_password: pass_,
             provider_user_agent: get("PROVIDER_USER_AGENT").unwrap_or_else(|| "iptv-proxy".into()),
             m3u_cache_hours: parse_num(get("M3U_CACHE_EXPIRATION"), "M3U_CACHE_EXPIRATION", 1u64)?,
-            m3u_file_name: get("M3U_FILE_NAME").unwrap_or_else(|| "iptv.m3u".into()),
+            m3u_file_name: match get("M3U_FILE_NAME") {
+                None => "iptv.m3u".into(),
+                Some(n) if n.contains('/') || n.contains('{') || n.contains('}') => {
+                    return Err(ConfigError::Invalid {
+                        name: "M3U_FILE_NAME",
+                        reason: "must be a plain file name (no /, { or })".into(),
+                    });
+                }
+                Some(n) => n,
+            },
             m3u_params: get("M3U_URL").map(|m| m3u_params(&m)).unwrap_or_default(),
+            xmltv_cache_minutes: parse_num(
+                get("XMLTV_CACHE_MINUTES"),
+                "XMLTV_CACHE_MINUTES",
+                60u64,
+            )?,
+            cache_dir: get("CACHE_DIR")
+                .map(Into::into)
+                .unwrap_or_else(|| std::env::temp_dir().join("iptv-proxy")),
             vod_throttle_kbps: parse_num(get("VOD_THROTTLE_KBPS"), "VOD_THROTTLE_KBPS", 0u64)?,
             share_live: get("SHARE_LIVE_STREAMS")
                 .map(|v| parse_bool(Some(v)))

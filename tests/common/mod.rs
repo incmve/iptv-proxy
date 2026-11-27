@@ -277,6 +277,7 @@ pub async fn setup_with(extra: &[(&str, &str)]) -> Env {
     prov.port.store(addr.port() as usize, Ordering::SeqCst);
 
     let cache = std::env::temp_dir().join(format!("iptv-proxy-test-{}", addr.port()));
+    let _ = std::fs::remove_dir_all(&cache);
     let mut env: HashMap<String, String> = HashMap::from([
         ("USER".into(), USER.into()),
         ("PASSWORD".into(), PASS.into()),
