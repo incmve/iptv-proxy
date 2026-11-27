@@ -196,6 +196,10 @@ async fn live(
         .into_response(),
         // Relative segment requested next to the 200 playlist.
         "20_1.ts" => "seg 20_1".into_response(),
+        // Segment protected by a token in the query (common on load balancers).
+        "30.m3u8" => "#EXTM3U\n#EXTINF:4,\n30_1.ts?token=xyz\n".into_response(),
+        "30_1.ts" if q.get("token").map(String::as_str) == Some("xyz") => "seg 30_1 with token".into_response(),
+        "30_1.ts" => StatusCode::FORBIDDEN.into_response(),
         "404.ts" => StatusCode::NOT_FOUND.into_response(),
         _ => {
             *p.last_live_ua.lock().unwrap() =

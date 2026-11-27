@@ -85,6 +85,13 @@ services:
       PASSWORD: ${PROXY_PASSWORD}
       LOG_LEVEL: info
       TZ: Europe/Amsterdam
+      SHARE_LIVE_STREAMS: "true"
+      XMLTV_CACHE_MINUTES: 60
+      CACHE_DIR: /cache
+      VOD_THROTTLE_KBPS: 0
+    # Playlist/EPG cache in RAM; writable for the image's non-root user.
+    tmpfs:
+      - /cache:size=256m
     # The image's own HEALTHCHECK reads PORT, so it checks 8081.
     ulimits:
       nofile:

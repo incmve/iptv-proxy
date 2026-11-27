@@ -18,7 +18,7 @@ use std::{
 
 use axum::{
     body::Body,
-    extract::{Path, State},
+    extract::{Path, RawQuery, State},
     http::{HeaderMap, HeaderValue, Method, StatusCode, header},
     response::{IntoResponse, Response},
 };
@@ -68,12 +68,13 @@ pub async fn live(
     State(st): State<Shared>,
     method: Method,
     Path((user, pass, id)): Path<(String, String, String)>,
+    RawQuery(query): RawQuery,
     headers: HeaderMap,
 ) -> Response {
     if !st.authorized(&user, &pass) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    channel(&st, "live", method, &id, &headers).await
+    channel(&st, "live", method, &id, query.as_deref(), &headers).await
 }
 
 /// `/{u}/{p}/{id}` (live without the `/live` prefix)
@@ -81,12 +82,13 @@ pub async fn live_alt(
     State(st): State<Shared>,
     method: Method,
     Path((user, pass, id)): Path<(String, String, String)>,
+    RawQuery(query): RawQuery,
     headers: HeaderMap,
 ) -> Response {
     if !st.authorized(&user, &pass) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    channel(&st, "", method, &id, &headers).await
+    channel(&st, "", method, &id, query.as_deref(), &headers).await
 }
 
 async fn channel(
@@ -94,9 +96,12 @@ async fn channel(
     kind: &str,
     method: Method,
     id: &str,
+    query: Option<&str>,
     headers: &HeaderMap,
 ) -> Response {
-    let url = st.provider_stream_url(kind, &[id]);
+    let mut url = st.provider_stream_url(kind, &[id]);
+    // Load balancers often put a token in the query: pass it on.
+    url.set_query(query);
     if id.ends_with(".m3u8") {
         let ch = id.trim_end_matches(".m3u8");
         tracing::info!("live hls {ch}");
@@ -112,6 +117,7 @@ async fn channel(
         Some((ch, _)) if !is_channel_id(id) => {
             let mut u = st.hls_origin(ch);
             u.set_path(url.path());
+            u.set_query(url.query());
             u
         }
         _ => url,
@@ -130,6 +136,7 @@ pub async fn hls(
     State(st): State<Shared>,
     method: Method,
     Path((token, chunk)): Path<(String, String)>,
+    RawQuery(query): RawQuery,
     headers: HeaderMap,
 ) -> Response {
     let channel = chunk
@@ -143,6 +150,7 @@ pub async fn hls(
         .expect("http url")
         .clear()
         .extend(["hls", &token, &chunk]);
+    url.set_query(query.as_deref());
     segment_or_playlist(&st, method, url, &chunk, Some(&channel), &headers).await
 }
 
@@ -158,6 +166,7 @@ pub async fn hlsr(
         String,
         String,
     )>,
+    RawQuery(query): RawQuery,
     headers: HeaderMap,
 ) -> Response {
     if !st.authorized(&user, &pass) {
@@ -173,6 +182,7 @@ pub async fn hlsr(
         &hash,
         &chunk,
     ]);
+    url.set_query(query.as_deref());
     segment_or_playlist(&st, method, url, &chunk, Some(&channel), &headers).await
 }
 
@@ -181,6 +191,7 @@ pub async fn play(
     State(st): State<Shared>,
     method: Method,
     Path((token, kind)): Path<(String, String)>,
+    RawQuery(query): RawQuery,
     headers: HeaderMap,
 ) -> Response {
     let mut url = st.cfg.xtream_base_url.clone();
@@ -188,6 +199,7 @@ pub async fn play(
         .expect("http url")
         .clear()
         .extend(["play", &token, &kind]);
+    url.set_query(query.as_deref());
     segment_or_playlist(&st, method, url, &kind, None, &headers).await
 }
 

@@ -61,6 +61,7 @@ Same job, same URLs, fewer bugs. [tuliprox](https://github.com/euzu/tuliprox)
     `m3u_plus` list (5 retries) on every start, even in Xtream mode.
 12. **Logs never contain credentials** (provider user/password, proxy password).
     Values shorter than 3 characters are not redacted.
+   Logs are plain text (no colour codes) when not on a terminal.
 13. **Health:** `/health` never touches the provider. The image has no shell;
     `iptv-proxy healthcheck` does the Docker check.
 
@@ -122,16 +123,26 @@ second one doesn't use the second provider slot.
 - [x] **1. Skeleton + VOD:** config, `/health` + `healthcheck`, `/movie` and
       `/series` (GET+HEAD, Range), header policy, open-retry, redaction,
       Docker image, CI, slot-release test.
-- [ ] **2. `player_api.php`:** pass-through for all actions (GET+POST), login
-      rewrite, URL/credential rewrite in answers.
-- [ ] **3. Live + HLS:** `/live`, `/{u}/{p}/{id}`, `/play`, `/hls`, `/hlsr`,
-      m3u8 rewrite, the 200 fix.
-- [ ] **4. Shared live streams** (MPEG-TS), see above.
-- [ ] **5. EPG + playlists:** streamed `xmltv.php`, `get.php`,
-      `/{M3U_FILE_NAME}`, disk cache.
-- [ ] **6. Catch-up:** path and query styles.
+- [x] **2. `player_api.php`:** pass-through for all actions (GET+POST), login
+      rewrite, streaming URL/credential rewrite (also PHP-escaped `\/`).
+- [x] **3. Live + HLS:** `/live`, `/{u}/{p}/{id}`, `/play`, `/hls`, `/hlsr`,
+      m3u8 rewrite, the 200 fix, query tokens passed on.
+- [x] **4. Shared live streams** (MPEG-TS), see above. `SHARE_LIVE_STREAMS`.
+- [x] **5. EPG + playlists:** streamed `xmltv.php`, `get.php`,
+      `/{M3U_FILE_NAME}`, disk cache with tee (one download per key).
+- [x] **6. Catch-up:** path and query styles.
 - [ ] **7. Side-by-side test** on port 8081 behind Gluetun: compare JSON answers
       with the Go proxy, add as a second playlist in TiviMate, then switch.
-- [ ] **8. VOD throttle** (optional, off by default).
+- [x] **8. VOD throttle** (optional, off by default): `VOD_THROTTLE_KBPS`.
+
+## Known limits
+
+- HLS segments on a host other than the provider or the playlist's own host
+  (a CDN) are left as absolute URLs: the player fetches them directly, not
+  through the proxy/VPN.
+- `#EXT-X-KEY`/`#EXT-X-MAP` URI attributes are not rewritten.
+- A cached playlist/EPG download is shared: requests that arrive while the
+  first one downloads wait for it to finish.
+- On stop, open streams get 5 seconds, then the process exits.
 
 Dropped: proxy-side connection limiting (the provider enforces its limit).

@@ -6,10 +6,13 @@ use tracing_subscriber::EnvFilter;
 const USAGE: &str = "usage: iptv-proxy [serve|healthcheck|version]";
 
 fn main() -> ExitCode {
+    use std::io::IsTerminal;
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_env("LOG_LEVEL").unwrap_or_else(|_| EnvFilter::new("info")),
         )
+        // Colour codes are noise in `docker logs`.
+        .with_ansi(std::io::stdout().is_terminal())
         .init();
 
     let rt = match tokio::runtime::Runtime::new() {
@@ -67,7 +70,11 @@ async fn serve() -> ExitCode {
     };
     tracing::info!("listening on :{port}");
 
-    let shutdown = async {
+    // Live streams never end on their own, so graceful shutdown would wait
+    // forever. Stop accepting at the signal, give open streams this long, exit.
+    const DRAIN: Duration = Duration::from_secs(5);
+    let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
+    tokio::spawn(async move {
         let ctrl_c = tokio::signal::ctrl_c();
         #[cfg(unix)]
         {
@@ -79,16 +86,29 @@ async fn serve() -> ExitCode {
         #[cfg(not(unix))]
         let _ = ctrl_c.await;
         tracing::info!("shutting down");
-    };
+        let _ = stop_tx.send(true);
+    });
 
-    match axum::serve(listener, router(state))
-        .with_graceful_shutdown(shutdown)
-        .await
-    {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(e) => {
-            tracing::error!("server error: {e}");
-            ExitCode::FAILURE
+    let mut graceful = stop_rx.clone();
+    let server = axum::serve(listener, router(state)).with_graceful_shutdown(async move {
+        let _ = graceful.wait_for(|stop| *stop).await;
+    });
+    let mut stopped = stop_rx;
+    let deadline = async move {
+        let _ = stopped.wait_for(|stop| *stop).await;
+        tokio::time::sleep(DRAIN).await;
+    };
+    tokio::select! {
+        r = server => match r {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                tracing::error!("server error: {e}");
+                ExitCode::FAILURE
+            }
+        },
+        _ = deadline => {
+            tracing::info!("closing remaining streams");
+            ExitCode::SUCCESS
         }
     }
 }

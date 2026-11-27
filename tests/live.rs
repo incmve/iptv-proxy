@@ -259,3 +259,31 @@ async fn sharing_can_be_switched_off() {
     let _ = read_more(&mut b, bb, 2_000).await;
     assert_eq!(e.prov.live_opened_total.load(Ordering::SeqCst), 2);
 }
+
+#[tokio::test]
+async fn segment_query_token_is_passed_on() {
+    let e = setup().await;
+    let pl = e
+        .client
+        .get(format!("{}/live/{USER}/{PASS}/30.m3u8", e.base))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    let line = pl
+        .lines()
+        .find(|l| l.contains("30_1.ts"))
+        .unwrap()
+        .to_string();
+    assert_eq!(line, format!("/live/{USER}/{PASS}/30_1.ts?token=xyz"));
+    let seg = e
+        .client
+        .get(format!("{}{line}", e.base))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(seg.status(), 200);
+    assert_eq!(seg.text().await.unwrap(), "seg 30_1 with token");
+}
