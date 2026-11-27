@@ -94,23 +94,44 @@ could only disagree with it. The proxy's job is to never waste a slot:
 Multiple accounts/failover, users and roles, web UI, mapping DSL, DVR, plugins,
 shared HLS segment cache, HDHomeRun.
 
+## Shared live streams
+
+Two players on the same live channel share one provider connection, so the
+second one doesn't use the second provider slot.
+
+- **MPEG-TS live only** (`/live/…/{id}.ts`, `/{u}/{p}/{id}`). Not HLS (needs a
+  segment cache), not VOD/catch-up (every player is at its own position).
+- Key: the live stream id. The first player opens the upstream; later players
+  attach to it. The first player's User-Agent is used upstream; joiners get the
+  stored response headers.
+- **Join:** a joiner starts from a small ring buffer, aligned to a TS packet
+  boundary (188 bytes, sync byte 0x47). tuliprox additionally aligns to the
+  newest keyframe ~3 s back (`shared_burst_secs`, `shared_burst_buffer_mb` 12);
+  start without it and add it if joining shows a second of artefacts.
+- **Slow player:** must never stall the others. A player that falls too far
+  behind the buffer is dropped (it reconnects and joins again).
+- **Leave:** the upstream closes as soon as the last player leaves (same
+  guarantee as `tests/disconnect.rs`, so no slot is held for nobody).
+- **Upstream ends:** all players' responses end; each player reconnects.
+- Tests: two players get identical bytes from one upstream connection; one
+  leaving keeps the other playing; last one leaving closes the upstream; a
+  stalled player doesn't block the other.
+
 ## Milestones
 
 - [x] **1. Skeleton + VOD:** config, `/health` + `healthcheck`, `/movie` and
       `/series` (GET+HEAD, Range), header policy, open-retry, redaction,
-      Docker image, CI.
+      Docker image, CI, slot-release test.
 - [ ] **2. `player_api.php`:** pass-through for all actions (GET+POST), login
       rewrite, URL/credential rewrite in answers.
 - [ ] **3. Live + HLS:** `/live`, `/{u}/{p}/{id}`, `/play`, `/hls`, `/hlsr`,
       m3u8 rewrite, the 200 fix.
-- [ ] **4. EPG + playlists:** streamed `xmltv.php`, `get.php`,
+- [ ] **4. Shared live streams** (MPEG-TS), see above.
+- [ ] **5. EPG + playlists:** streamed `xmltv.php`, `get.php`,
       `/{M3U_FILE_NAME}`, disk cache.
-- [ ] **5. Catch-up:** path and query styles.
-- [x] ~~**6. Connection limit**~~ — dropped: the provider enforces its limit.
-      The proxy only guarantees it releases slots at once (tested).
+- [ ] **6. Catch-up:** path and query styles.
 - [ ] **7. Side-by-side test** on port 8081 behind Gluetun: compare JSON answers
       with the Go proxy, add as a second playlist in TiviMate, then switch.
-- [ ] **8. Shared live streams** (optional): two players on the same live
-      channel share one provider connection. Saves a slot instead of deciding
-      who gets one.
-- [ ] **9. VOD throttle** (optional, off by default).
+- [ ] **8. VOD throttle** (optional, off by default).
+
+Dropped: proxy-side connection limiting (the provider enforces its limit).
