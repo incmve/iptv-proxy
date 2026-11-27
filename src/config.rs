@@ -58,6 +58,14 @@ pub struct Config {
     pub m3u_cache_hours: u64,
     /// File name of the proxied playlist (`M3U_FILE_NAME`, default `iptv.m3u`).
     pub m3u_file_name: String,
+    /// The original `M3U_URL` query (type, output, ...), used for
+    /// `/{M3U_FILE_NAME}`. Credentials removed.
+    pub m3u_params: Vec<(String, String)>,
+    /// Cap per VOD stream in kbit/s (`VOD_THROTTLE_KBPS`, 0 = off).
+    pub vod_throttle_kbps: u64,
+    /// Share one provider connection per live MPEG-TS channel
+    /// (`SHARE_LIVE_STREAMS`, default on).
+    pub share_live: bool,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -154,6 +162,11 @@ impl Config {
             provider_user_agent: get("PROVIDER_USER_AGENT").unwrap_or_else(|| "iptv-proxy".into()),
             m3u_cache_hours: parse_num(get("M3U_CACHE_EXPIRATION"), "M3U_CACHE_EXPIRATION", 1u64)?,
             m3u_file_name: get("M3U_FILE_NAME").unwrap_or_else(|| "iptv.m3u".into()),
+            m3u_params: get("M3U_URL").map(|m| m3u_params(&m)).unwrap_or_default(),
+            vod_throttle_kbps: parse_num(get("VOD_THROTTLE_KBPS"), "VOD_THROTTLE_KBPS", 0u64)?,
+            share_live: get("SHARE_LIVE_STREAMS")
+                .map(|v| parse_bool(Some(v)))
+                .unwrap_or(true),
         })
     }
 
@@ -202,6 +215,18 @@ fn parse_base_url(s: &str, name: &'static str) -> Result<Url, ConfigError> {
     base.set_query(None);
     base.set_fragment(None);
     Ok(base)
+}
+
+/// Query parameters of `M3U_URL` without the credentials.
+fn m3u_params(m3u: &str) -> Vec<(String, String)> {
+    Url::parse(m3u)
+        .map(|u| {
+            u.query_pairs()
+                .filter(|(k, _)| k != "username" && k != "password")
+                .map(|(k, v)| (k.into_owned(), v.into_owned()))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn from_get_php(m3u: &str) -> Result<(Url, String, String), ConfigError> {
@@ -258,6 +283,15 @@ mod tests {
         assert_eq!(c.port, 8080);
         assert_eq!(c.advertised_port, 8080);
         assert_eq!(c.provider_user_agent, "iptv-proxy");
+        assert_eq!(
+            c.m3u_params,
+            vec![
+                ("type".into(), "m3u_plus".into()),
+                ("output".into(), "mpegts".into())
+            ]
+        );
+        assert_eq!(c.vod_throttle_kbps, 0);
+        assert!(c.share_live);
     }
 
     #[test]

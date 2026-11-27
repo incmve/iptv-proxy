@@ -2,9 +2,13 @@
 //!
 //! See docs/DESIGN.md for scope, decisions and milestones.
 
+pub mod api;
+pub mod auth;
 pub mod config;
 pub mod headers;
+pub mod rewrite;
 pub mod stream;
+pub mod throttle;
 pub mod upstream;
 
 use std::sync::Arc;
@@ -23,7 +27,9 @@ pub use config::Config;
 
 pub struct AppState {
     pub cfg: Config,
+    /// Follows provider redirects (streams, API).
     pub http: reqwest::Client,
+    pub rewriter: rewrite::Rewriter,
 }
 
 pub type Shared = Arc<AppState>;
@@ -31,7 +37,12 @@ pub type Shared = Arc<AppState>;
 impl AppState {
     pub fn new(cfg: Config) -> reqwest::Result<Self> {
         let http = upstream::build(&cfg.provider_user_agent)?;
-        Ok(Self { cfg, http })
+        let rewriter = rewrite::Rewriter::new(&cfg);
+        Ok(Self {
+            cfg,
+            http,
+            rewriter,
+        })
     }
 
     /// Constant-time check of the proxy credentials a client sent.
@@ -41,8 +52,8 @@ impl AppState {
         bool::from(u & p)
     }
 
-    /// `<provider>/<kind>/<provider user>/<provider pass>/<id>`, percent-encoded.
-    pub fn provider_stream_url(&self, kind: &str, id: &str) -> Url {
+    /// `<provider>/<kind>/<provider user>/<provider pass>/<rest...>`, percent-encoded.
+    pub fn provider_stream_url(&self, kind: &str, rest: &[&str]) -> Url {
         let mut u = self.cfg.xtream_base_url.clone();
         {
             let mut seg = u.path_segments_mut().expect("http(s) base URL");
@@ -52,15 +63,30 @@ impl AppState {
             }
             seg.push(self.cfg.xtream_user.expose());
             seg.push(self.cfg.xtream_password.expose());
-            seg.push(id);
+            seg.extend(rest);
         }
         u
+    }
+
+    pub fn redact(&self, s: &str) -> String {
+        upstream::redact(
+            s,
+            &[
+                self.cfg.xtream_user.expose(),
+                self.cfg.xtream_password.expose(),
+                self.cfg.password.expose(),
+            ],
+        )
     }
 }
 
 pub fn router(state: Shared) -> Router {
     Router::new()
         .route("/health", get(health))
+        .route(
+            "/player_api.php",
+            get(api::player_api).post(api::player_api),
+        )
         .route("/movie/{user}/{pass}/{id}", get(movie).head(movie))
         .route("/series/{user}/{pass}/{id}", get(series).head(series))
         .with_state(state)
@@ -103,6 +129,12 @@ async fn vod(
         return StatusCode::UNAUTHORIZED.into_response();
     }
     tracing::info!("{method} {kind} {id}");
-    let url = st.provider_stream_url(kind, id);
-    stream::relay(st, method, url, headers).await
+    let url = st.provider_stream_url(kind, &[id]);
+    match stream::open(st, &st.http, method.clone(), url, Some(headers)).await {
+        Ok(resp) => {
+            let throttle = (st.cfg.vod_throttle_kbps > 0).then_some(st.cfg.vod_throttle_kbps);
+            stream::passthrough(resp, &method, throttle)
+        }
+        Err(e) => e.into_response(),
+    }
 }
